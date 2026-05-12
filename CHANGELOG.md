@@ -4,6 +4,20 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.7.0] — 2026-05-12
+
+### Added
+
+- `09_hourly_multi_crypto_walkforward.ipynb` — NB09 multi-crypto hourly robustness (1h horizon, K=4, 5-fold WF).
+
+### Changed
+
+- `EXPERIMENTS.md`: NB09 entry; running synthesis updated.
+
+### Findings
+
+- **Multi-crypto hourly robustness** (hourly BTC/ETH/SOL/XRP): baseline RF beats trivial baselines on 4/4 tickers; hierarchy IC lift positive on 4/4 (range +0.000 to +0.010); balanced-acc lift split 2/2 (BTC/SOL positive, ETH/XRP negative)
+
 ## [0.6.0] — 2026-05-12
 
 ### Added
