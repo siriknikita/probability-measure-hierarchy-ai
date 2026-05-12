@@ -22,10 +22,11 @@ A `baseline_rf` vs `hierarchy_rf` win establishes whether the soft-membership re
 |---|---|---|---|
 | **Direction (up/down next H bars)** | daily, 3 tickers | hierarchy does NOT help — baseline wins on balanced accuracy on all tickers | NB05 |
 | **Next-state (which leaf in K leaves)** | daily, 3 tickers, K=4 | hierarchy framing works — RF beats persistence by 7–13 pp everywhere | NB06 |
+| **Next-state — depth sweep** | daily, 3 tickers, K∈{2,4,8,16} | robust at every depth; soft-membership features help at K=4–8, hurt at K=16 | NB07 |
 
-Net read (updated after NB06):
+Net read (updated after NB07):
 
-- **The hierarchy is useful as a target labeling** (NB06 — predicting which state the market moves to). RF on baseline features beats persistence by 7–13 pp on every ticker. The empirical Markov kernel alone collapses to persistence, so feature context is required.
+- **The hierarchy is useful as a target labeling** (NB06/07 — predicting which state the market moves to). This is the most robust positive result; it survives a depth sweep across K ∈ {2, 4, 8, 16} on three daily tickers. Soft-membership *as inputs* helps at K=4–8 and hurts at K=16.
 - **The hierarchy does not help direction prediction on daily data** (NB05). Baseline wins on balanced accuracy on SPY, NVDA and BTC-USD once each feature set tunes its own RF; the earlier NB04 "+0.9 pp on SPY" was a hyperparameter artifact.
 
 ## Metric glossary
@@ -50,7 +51,7 @@ Net read (updated after NB06):
 
 **Validation protocol:**
 
-- **Time-respecting split** (NB05/06) — single train/val/test split, chronologically ordered, no shuffling. Val used for RF hyperparameter selection; model refit on train+val before scoring on test.
+- **Time-respecting split** (NB05/06/07) — single train/val/test split, chronologically ordered, no shuffling. Val used for RF hyperparameter selection; model refit on train+val before scoring on test.
 
 ---
 
@@ -273,3 +274,187 @@ Net read (updated after NB06):
 | SPY      | {'max_depth': 8, 'min_samples_leaf': 10} |            0.4568 | {'max_depth': 8, 'min_samples_leaf': 10} |         0.4499 |
 | NVDA     | {'max_depth': 8, 'min_samples_leaf': 10} |            0.5244 | {'max_depth': 6, 'min_samples_leaf': 40} |         0.5315 |
 | BTC-USD  | {'max_depth': 6, 'min_samples_leaf': 40} |            0.5009 | {'max_depth': 8, 'min_samples_leaf': 20} |         0.5013 |
+
+---
+
+## 2026-05-12 15:23:24 — NB07 Markov-kernel depth sweep (depths=[1, 2, 3, 4], horizon=5)
+
+**TL;DR — robustness check of NB06.** Same setup as NB06 but sweeps hierarchy depth across `{1, 2, 3, 4}` → `K ∈ {2, 4, 8, 16}` leaves. **The NB06 finding is robust at every depth on every ticker.** RF beats persistence by a minimum of +3.7 pp (BTC, K=16) and a maximum of +15.0 pp (SPY, K=2).
+
+**Multiplicative gain over chance grows with K:**
+
+| ticker | K=2 | K=4 | K=8 | K=16 |
+|---|---|---|---|---|
+| SPY rf_joint / chance | 1.50× | 1.96× | 2.24× | 2.38× |
+| NVDA | 1.43× | 1.85× | 2.20× | 2.27× |
+| BTC | 1.51× | 1.98× | 2.67× | 2.83× |
+
+The absolute gap over persistence shrinks as K grows (because persistence shrinks faster) but the multiplicative information gain *grows*. The RF recovers progressively more structure as the partition gets finer.
+
+**Soft-membership feature contribution (`rf_joint − rf_features_only`):**
+
+| ticker | K=2 | K=4 | K=8 | K=16 |
+|---|---|---|---|---|
+| SPY | −0.87 | **+3.22** | +0.24 | −0.62 |
+| NVDA | +0.13 | +0.13 | −1.11 | −2.47 |
+| BTC-USD | +0.36 | +0.60 | +1.55 | −1.19 |
+
+Soft-membership features as inputs help most at K=4–8 and **hurt on every ticker at K=16** (the same overfit pathology NB05 saw with direction prediction). The "sweet spot for hierarchy as features" is moderate depth.
+
+**Empirical Markov kernel collapses to persistence at every depth** — its diagonal is the argmax in essentially every row. State-only prediction has no value beyond persistence regardless of how finely you partition.
+
+**Config**
+
+```json
+{
+  "notebook": "07_markov_kernel_depth_sweep.ipynb",
+  "tickers": [
+    "SPY",
+    "NVDA",
+    "BTC-USD"
+  ],
+  "depths": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "start_date": "2010-01-01",
+  "horizon": 5,
+  "min_leaf_count": 200,
+  "rf_n_estimators": 300,
+  "rf_grid": [
+    {
+      "max_depth": 4,
+      "min_samples_leaf": 10
+    },
+    {
+      "max_depth": 4,
+      "min_samples_leaf": 20
+    },
+    {
+      "max_depth": 4,
+      "min_samples_leaf": 40
+    },
+    {
+      "max_depth": 6,
+      "min_samples_leaf": 10
+    },
+    {
+      "max_depth": 6,
+      "min_samples_leaf": 20
+    },
+    {
+      "max_depth": 6,
+      "min_samples_leaf": 40
+    },
+    {
+      "max_depth": 8,
+      "min_samples_leaf": 10
+    },
+    {
+      "max_depth": 8,
+      "min_samples_leaf": 20
+    },
+    {
+      "max_depth": 8,
+      "min_samples_leaf": 40
+    }
+  ],
+  "seed": 42
+}
+```
+
+**Per (ticker, depth, model) test-set results**
+
+| ticker   |   depth |   K | model            |   n_test |   accuracy |   macro_f1 |   transition_count |   transition_accuracy |
+|:---------|--------:|----:|:-----------------|---------:|-----------:|-----------:|-------------------:|----------------------:|
+| SPY      |       1 |   2 | random           |      807 |     0.4907 |     0.4907 |                315 |                0.5365 |
+| SPY      |       1 |   2 | marginal         |      807 |     0.5093 |     0.3374 |                315 |                0.5016 |
+| SPY      |       1 |   2 | persistence      |      807 |     0.6097 |     0.6095 |                315 |                0      |
+| SPY      |       1 |   2 | empirical_markov |      807 |     0.6097 |     0.6095 |                315 |                0      |
+| SPY      |       1 |   2 | rf_features_only |      807 |     0.7596 |     0.7589 |                315 |                0.5841 |
+| SPY      |       1 |   2 | rf_joint         |      807 |     0.7509 |     0.7496 |                315 |                0.5397 |
+| SPY      |       2 |   4 | random           |      807 |     0.2342 |     0.2341 |                522 |                0.228  |
+| SPY      |       2 |   4 | marginal         |      807 |     0.2528 |     0.1009 |                522 |                0.2816 |
+| SPY      |       2 |   4 | persistence      |      807 |     0.3532 |     0.3527 |                522 |                0      |
+| SPY      |       2 |   4 | empirical_markov |      807 |     0.3606 |     0.3004 |                522 |                0.2146 |
+| SPY      |       2 |   4 | rf_features_only |      807 |     0.4585 |     0.4401 |                522 |                0.3793 |
+| SPY      |       2 |   4 | rf_joint         |      807 |     0.4907 |     0.4775 |                522 |                0.3985 |
+| SPY      |       3 |   8 | random           |      807 |     0.1264 |     0.1263 |                644 |                0.1289 |
+| SPY      |       3 |   8 | marginal         |      807 |     0.1202 |     0.0268 |                644 |                0.1335 |
+| SPY      |       3 |   8 | persistence      |      807 |     0.202  |     0.2009 |                644 |                0      |
+| SPY      |       3 |   8 | empirical_markov |      807 |     0.2032 |     0.1571 |                644 |                0.1196 |
+| SPY      |       3 |   8 | rf_features_only |      807 |     0.2776 |     0.2422 |                644 |                0.2283 |
+| SPY      |       3 |   8 | rf_joint         |      807 |     0.28   |     0.2564 |                644 |                0.2096 |
+| SPY      |       4 |  16 | random           |      807 |     0.0458 |     0.0465 |                720 |                0.0403 |
+| SPY      |       4 |  16 | marginal         |      807 |     0.0533 |     0.0063 |                720 |                0.0556 |
+| SPY      |       4 |  16 | persistence      |      807 |     0.1078 |     0.106  |                720 |                0      |
+| SPY      |       4 |  16 | empirical_markov |      807 |     0.114  |     0.0894 |                720 |                0.0819 |
+| SPY      |       4 |  16 | rf_features_only |      807 |     0.1549 |     0.13   |                720 |                0.1458 |
+| SPY      |       4 |  16 | rf_joint         |      807 |     0.1487 |     0.1287 |                720 |                0.1361 |
+| NVDA     |       1 |   2 | random           |      807 |     0.4857 |     0.4854 |                288 |                0.5035 |
+| NVDA     |       1 |   2 | marginal         |      807 |     0.5254 |     0.3444 |                288 |                0.5035 |
+| NVDA     |       1 |   2 | persistence      |      807 |     0.6431 |     0.6423 |                288 |                0      |
+| NVDA     |       1 |   2 | empirical_markov |      807 |     0.6431 |     0.6423 |                288 |                0      |
+| NVDA     |       1 |   2 | rf_features_only |      807 |     0.7125 |     0.7118 |                288 |                0.4722 |
+| NVDA     |       1 |   2 | rf_joint         |      807 |     0.7138 |     0.7121 |                288 |                0.4792 |
+| NVDA     |       2 |   4 | random           |      807 |     0.2416 |     0.2405 |                491 |                0.2546 |
+| NVDA     |       2 |   4 | marginal         |      807 |     0.2763 |     0.1083 |                491 |                0.2505 |
+| NVDA     |       2 |   4 | persistence      |      807 |     0.3916 |     0.3868 |                491 |                0      |
+| NVDA     |       2 |   4 | empirical_markov |      807 |     0.3916 |     0.3868 |                491 |                0      |
+| NVDA     |       2 |   4 | rf_features_only |      807 |     0.4622 |     0.449  |                491 |                0.3238 |
+| NVDA     |       2 |   4 | rf_joint         |      807 |     0.4634 |     0.4424 |                491 |                0.2974 |
+| NVDA     |       3 |   8 | random           |      807 |     0.1276 |     0.126  |                649 |                0.1341 |
+| NVDA     |       3 |   8 | marginal         |      807 |     0.1314 |     0.029  |                649 |                0.1371 |
+| NVDA     |       3 |   8 | persistence      |      807 |     0.1958 |     0.1929 |                649 |                0      |
+| NVDA     |       3 |   8 | empirical_markov |      807 |     0.2144 |     0.1599 |                649 |                0.094  |
+| NVDA     |       3 |   8 | rf_features_only |      807 |     0.2862 |     0.2595 |                649 |                0.228  |
+| NVDA     |       3 |   8 | rf_joint         |      807 |     0.2751 |     0.2447 |                649 |                0.2173 |
+| NVDA     |       4 |  16 | random           |      807 |     0.0694 |     0.0703 |                728 |                0.0646 |
+| NVDA     |       4 |  16 | marginal         |      807 |     0.0731 |     0.0085 |                728 |                0.0728 |
+| NVDA     |       4 |  16 | persistence      |      807 |     0.0979 |     0.0965 |                728 |                0      |
+| NVDA     |       4 |  16 | empirical_markov |      807 |     0.1029 |     0.0729 |                728 |                0.0824 |
+| NVDA     |       4 |  16 | rf_features_only |      807 |     0.166  |     0.1372 |                728 |                0.1456 |
+| NVDA     |       4 |  16 | rf_joint         |      807 |     0.1413 |     0.1166 |                728 |                0.1209 |
+| BTC-USD  |       1 |   2 | random           |      836 |     0.4797 |     0.479  |                276 |                0.5109 |
+| BTC-USD  |       1 |   2 | marginal         |      836 |     0.5203 |     0.3423 |                276 |                0.5    |
+| BTC-USD  |       1 |   2 | persistence      |      836 |     0.6699 |     0.6693 |                276 |                0      |
+| BTC-USD  |       1 |   2 | empirical_markov |      836 |     0.6699 |     0.6693 |                276 |                0      |
+| BTC-USD  |       1 |   2 | rf_features_only |      836 |     0.7548 |     0.7539 |                276 |                0.5217 |
+| BTC-USD  |       1 |   2 | rf_joint         |      836 |     0.7584 |     0.7576 |                276 |                0.4674 |
+| BTC-USD  |       2 |   4 | random           |      836 |     0.256  |     0.2533 |                484 |                0.2521 |
+| BTC-USD  |       2 |   4 | marginal         |      836 |     0.2309 |     0.0938 |                484 |                0.2231 |
+| BTC-USD  |       2 |   4 | persistence      |      836 |     0.4211 |     0.4029 |                484 |                0      |
+| BTC-USD  |       2 |   4 | empirical_markov |      836 |     0.4211 |     0.4029 |                484 |                0      |
+| BTC-USD  |       2 |   4 | rf_features_only |      836 |     0.4892 |     0.4557 |                484 |                0.314  |
+| BTC-USD  |       2 |   4 | rf_joint         |      836 |     0.4952 |     0.4621 |                484 |                0.2913 |
+| BTC-USD  |       3 |   8 | random           |      836 |     0.1292 |     0.1236 |                618 |                0.1197 |
+| BTC-USD  |       3 |   8 | marginal         |      836 |     0.067  |     0.0157 |                618 |                0.068  |
+| BTC-USD  |       3 |   8 | persistence      |      836 |     0.2608 |     0.2389 |                618 |                0      |
+| BTC-USD  |       3 |   8 | empirical_markov |      836 |     0.2572 |     0.1962 |                618 |                0.0663 |
+| BTC-USD  |       3 |   8 | rf_features_only |      836 |     0.3182 |     0.2739 |                618 |                0.2411 |
+| BTC-USD  |       3 |   8 | rf_joint         |      836 |     0.3337 |     0.2808 |                618 |                0.233  |
+| BTC-USD  |       4 |  16 | random           |      836 |     0.061  |     0.0567 |                719 |                0.0626 |
+| BTC-USD  |       4 |  16 | marginal         |      836 |     0.0215 |     0.0026 |                719 |                0.0195 |
+| BTC-USD  |       4 |  16 | persistence      |      836 |     0.14   |     0.1364 |                719 |                0      |
+| BTC-USD  |       4 |  16 | empirical_markov |      836 |     0.1316 |     0.0904 |                719 |                0.0682 |
+| BTC-USD  |       4 |  16 | rf_features_only |      836 |     0.189  |     0.1627 |                719 |                0.1697 |
+| BTC-USD  |       4 |  16 | rf_joint         |      836 |     0.177  |     0.1515 |                719 |                0.1419 |
+
+**Accuracy gap vs persistence**
+
+|                |   empirical_markov |   marginal |   persistence |   random |   rf_features_only |   rf_joint |
+|:---------------|-------------------:|-----------:|--------------:|---------:|-------------------:|-----------:|
+| ('BTC-USD', 1) |             0      |    -0.1495 |             0 |  -0.1902 |             0.0849 |     0.0885 |
+| ('BTC-USD', 2) |             0      |    -0.1902 |             0 |  -0.1651 |             0.0682 |     0.0742 |
+| ('BTC-USD', 3) |            -0.0036 |    -0.1938 |             0 |  -0.1316 |             0.0574 |     0.073  |
+| ('BTC-USD', 4) |            -0.0084 |    -0.1184 |             0 |  -0.0789 |             0.049  |     0.0371 |
+| ('NVDA', 1)    |             0      |    -0.1177 |             0 |  -0.1574 |             0.0694 |     0.0706 |
+| ('NVDA', 2)    |             0      |    -0.1152 |             0 |  -0.1499 |             0.0706 |     0.0719 |
+| ('NVDA', 3)    |             0.0186 |    -0.0644 |             0 |  -0.0682 |             0.0905 |     0.0793 |
+| ('NVDA', 4)    |             0.005  |    -0.0248 |             0 |  -0.0285 |             0.0682 |     0.0434 |
+| ('SPY', 1)     |             0      |    -0.1004 |             0 |  -0.119  |             0.1499 |     0.1413 |
+| ('SPY', 2)     |             0.0074 |    -0.1004 |             0 |  -0.119  |             0.1053 |     0.1375 |
+| ('SPY', 3)     |             0.0012 |    -0.0818 |             0 |  -0.0756 |             0.0756 |     0.0781 |
+| ('SPY', 4)     |             0.0062 |    -0.0545 |             0 |  -0.062  |             0.0471 |     0.0409 |
