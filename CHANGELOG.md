@@ -4,6 +4,20 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.9.0] — 2026-05-12
+
+### Added
+
+- `11_two_stage_horizon_sweep.ipynb` — NB11 two-stage horizon sweep (BTC-USD, horizons=[1, 4, 24]h, K=4).
+
+### Changed
+
+- `EXPERIMENTS.md`: NB11 entry; running synthesis updated.
+
+### Findings
+
+- **Two-stage horizon sweep** (hourly BTC, horizons {1, 4, 24}h): **4h is the clean positive: IC lift +0.022, bal_acc +0.28 pp, both with 4/5 folds positive.** 1h within noise; 24h underpowered
+
 ## [0.8.0] — 2026-05-12
 
 ### Added
