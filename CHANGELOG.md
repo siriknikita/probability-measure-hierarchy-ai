@@ -4,6 +4,20 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.6.0] — 2026-05-12
+
+### Added
+
+- `08_hourly_btc_walkforward.ipynb` — NB08 hourly BTC-USD walk-forward (horizons=[1, 4]h, K=4).
+
+### Changed
+
+- `EXPERIMENTS.md`: NB08 entry; running synthesis updated.
+
+### Findings
+
+- **Next-hour log return (single ticker)** (hourly BTC-USD, walk-forward): hierarchy adds small but real signal: IC +0.034, balanced acc 51.9%
+
 ## [0.5.0] — 2026-05-12
 
 ### Added
