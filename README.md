@@ -56,3 +56,8 @@ The notebooks derive returns, volatility, greed index, fear index, and labels fr
 The notebooks are prototypes. They do not prove that price charts literally encode psychology.
 They test whether hierarchy-derived variables add predictive or representational value under time-respecting validation.
 
+4. `04_real_data_price_prediction_yfinance.ipynb`
+   - Downloads real OHLCV data through `yfinance`.
+   - Predicts future close, future return, and future direction.
+   - Compares baseline models against hierarchy-augmented models.
+   - Includes price MAE/RMSE, directional accuracy, confusion matrix, probability bucket analysis, and feature importance.
