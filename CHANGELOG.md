@@ -4,6 +4,20 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.5.0] — 2026-05-12
+
+### Added
+
+- `07_markov_kernel_depth_sweep.ipynb` — NB07 Markov-kernel depth sweep (depths=[1, 2, 3, 4], horizon=5).
+
+### Changed
+
+- `EXPERIMENTS.md`: NB07 entry; running synthesis updated.
+
+### Findings
+
+- **Next-state — depth sweep** (daily, 3 tickers, K∈{2,4,8,16}): robust at every depth; soft-membership features help at K=4–8, hurt at K=16
+
 ## [0.4.0] — 2026-05-12
 
 ### Added
