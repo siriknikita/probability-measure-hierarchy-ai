@@ -25,12 +25,14 @@ A `baseline_rf` vs `hierarchy_rf` win establishes whether the soft-membership re
 | **Next-state — depth sweep** | daily, 3 tickers, K∈{2,4,8,16} | robust at every depth; soft-membership features help at K=4–8, hurt at K=16 | NB07 |
 | **Next-hour log return (single ticker)** | hourly BTC-USD, walk-forward | hierarchy adds small but real signal: IC +0.034, balanced acc 51.9% | NB08 |
 | **Multi-crypto hourly robustness** | hourly BTC/ETH/SOL/XRP | baseline RF beats trivial baselines on 4/4 tickers; hierarchy IC lift positive on 4/4 (range +0.000 to +0.010); balanced-acc lift split 2/2 (BTC/SOL positive, ETH/XRP negative) | NB09 |
+| **Two-stage transition-aware (50/50 split, 1h)** | hourly BTC, walk-forward | hypothesis test null at 1h: transition_rf IC ≈ hierarchy_rf IC, +0.0005 mean lift, 2/5 folds positive | NB10 |
 
-Net read (updated after NB09):
+Net read (updated after NB10):
 
 - **The hierarchy is useful as a target labeling** (NB06/07 — predicting which state the market moves to). This is the most robust positive result; it survives a depth sweep across K ∈ {2, 4, 8, 16} on three daily tickers. Soft-membership *as inputs* helps at K=4–8 and hurts at K=16.
 - **Baseline RF picks up real intraday signal** that extends across crypto (NB08/09): every ticker has mean balanced accuracy > 50%, ROC AUC ≥ 0.518, persistence has negative IC. Hourly OHLCV has next-hour predictability that's not a BTC-specific accident.
 - **The hierarchy *features* add a small lift on IC across crypto but not on balanced accuracy** (NB09). The IC lift sign is positive on 4/4 cryptos but tiny on ETH; the balanced-accuracy lift is split 2/2.
+- **The two-stage transition-aware architecture is null at 1h** (NB10). `transition_rf` IC ≈ `hierarchy_rf` IC (+0.0005, 2/5 folds positive) — fails the pre-stated criterion. Confounded by the 50/50 train split; next step is longer horizons.
 - **The hierarchy never helps direction prediction on daily data** (NB05). The disagreement with the intraday results suggests the hierarchy's value, if any, emerges at short-horizon resolution.
 
 ## Metric glossary
@@ -719,4 +721,85 @@ XRP-USD baseline_rf   0.01166
         hierarchy_rf  0.01012  
         majority      0.00000  
         persistence   0.00000  
+```
+
+---
+
+## 2026-05-12 15:55:36 — NB10 two-stage transition-aware return prediction (BTC-USD, 1h, K=4)
+
+**TL;DR — hypothesis didn't pass; architecture is clean.** Tests whether *predicted hierarchy-state transition features* (probability vector, entropy, instability, expected-state-index drift, 2D drift in greed/fear space, top-1-vs-top-2 margin) add return-prediction signal beyond raw soft-membership. Two-stage pipeline: Stage 1 RF maps `(baseline_features, soft_membership_t) → P(z_{t+1h})` on the first half of each fold's train slice; Stage 2 RF regressor/classifier uses Stage-1 outputs as features on the second half. Walk-forward 5 folds on BTC-USD hourly.
+
+**Result:** `transition_rf` IC = +0.0281 ± 0.007 vs `hierarchy_rf` IC = +0.0275 ± 0.013. Mean lift = +0.0005, 2/5 folds positive. The pre-stated criterion was *mean lift > +0.005 AND ≥3/5 folds positive* — **the test fails on both counts**. Balanced accuracy is slightly worse (−0.37 pp), 2/5 folds positive. The one weak positive: ROC AUC lift = +0.004, 3/5 folds positive, suggesting marginal reranking effect.
+
+**Per-fold IC lift `transition − hierarchy`:** +0.0065 / −0.0080 / −0.0052 / **+0.0144** / −0.0050. Fold 3's +0.0144 is the largest single-fold lift in the project but it doesn't generalize to neighboring folds.
+
+**Mechanistic read:**
+
+1. **Empirical Markov kernel from NB07 already told us this would be hard.** State-only prediction collapsed to persistence — `z_t` is most of the information about `z_{t+1h}`. Running it through Stage 1 doesn't manufacture new signal.
+2. **Hourly state changes are rare.** Most rows have `state_t_future = state_t`, so `transition_delta`, `drift`, and `state_change` features are near-zero most of the time.
+3. **The 50/50 train split hurts.** `baseline_rf` IC dropped from +0.027 in NB08/09 to +0.020 here — a +0.007 haircut purely from halving Stage-2 train data. The transition features had to clear that haircut *and* add value over hierarchy_rf to pass; they couldn't.
+
+**What this means for the broader hypothesis.** *Predicted movement through behavioral-state space* does not, at hourly resolution on BTC, predict return distribution beyond what static soft-membership already provides. The transition features and soft-membership features are largely redundant — both encode "where in the hierarchy are we and how stable is that?" — and Stage 1 doesn't extract additional structure.
+
+**Where to test next:** at 4h or 24h horizon, state transitions become substantive (less persistence, more regime drift), so Stage 1's predictions carry richer information. The 1h result alone is *not* a refutation of the user's hypothesis — it's evidence that hourly state transitions aren't dynamic enough for the two-stage architecture to add value.
+
+**Config**
+
+```json
+{
+  "notebook": "10_two_stage_transition_return.ipynb",
+  "ticker": "BTC-USD",
+  "period": "720d",
+  "interval": "1h",
+  "horizon_hours": 1,
+  "n_folds": 5,
+  "f1_f2_split": 0.5,
+  "max_hierarchy_depth": 2,
+  "stage1_params": {
+    "max_depth": 8,
+    "min_samples_leaf": 20
+  },
+  "stage2_params": {
+    "max_depth": 8,
+    "min_samples_leaf": 20
+  },
+  "rf_n_estimators": 200,
+  "seed": 42
+}
+```
+
+**Per-fold lifts: `transition_rf − hierarchy_rf`**
+
+|   fold |   ic_lift |   bal_acc_lift_pp |   auc_lift |
+|-------:|----------:|------------------:|-----------:|
+|      0 |   0.00651 |             0.476 |    0.01322 |
+|      1 |  -0.00803 |             0.104 |    0.00871 |
+|      2 |  -0.00522 |            -0.353 |   -0.00315 |
+|      3 |   0.01439 |            -1.88  |   -0.00438 |
+|      4 |  -0.00498 |            -0.185 |    0.00588 |
+
+**Regression summary (mean ± std across folds)**
+
+```
+                   mae              rmse                ic         
+                  mean      std     mean      std     mean      std
+model                                                              
+baseline_rf    0.00299  0.00063  0.00468  0.00123  0.02022  0.01055
+hierarchy_rf   0.00299  0.00063  0.00469  0.00123  0.02752  0.01279
+persistence    0.00430  0.00089  0.00656  0.00167 -0.01849  0.02707
+transition_rf  0.00298  0.00063  0.00468  0.00123  0.02806  0.00740
+zero           0.00296  0.00061  0.00464  0.00121  0.00000  0.00000
+```
+
+**Classification summary (mean ± std across folds)**
+
+```
+              accuracy          balanced_accuracy           roc_auc         
+                  mean      std              mean      std     mean      std
+model                                                                       
+baseline_rf    0.51697  0.01350           0.51856  0.01351  0.52045  0.00568
+hierarchy_rf   0.51795  0.00547           0.51916  0.00576  0.52316  0.00440
+majority       0.50427  0.00623           0.50000  0.00000      NaN      NaN
+persistence    0.49267  0.01196           0.49257  0.01184      NaN      NaN
+transition_rf  0.51453  0.00625           0.51549  0.00746  0.52721  0.00971
 ```
