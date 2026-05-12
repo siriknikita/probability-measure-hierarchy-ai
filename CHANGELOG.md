@@ -4,6 +4,18 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.3.0] — 2026-05-12
+
+### Added
+
+- `05_multi_ticker_validation_tuned.ipynb` — NB05 multi-ticker ablation (val-tuned RF, hierarchy max_depth=2).
+- `EXPERIMENTS.md` — append-only experiment journal with running synthesis and metric glossary.
+- Dependency: `tabulate`.
+
+### Findings
+
+- **Direction (up/down next H bars)** (daily, 3 tickers): hierarchy does NOT help — baseline wins on balanced accuracy on all tickers
+
 ## [0.2.0] — 2026-05-12
 
 ### Added
