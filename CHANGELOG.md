@@ -4,6 +4,20 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.8.0] — 2026-05-12
+
+### Added
+
+- `10_two_stage_transition_return.ipynb` — NB10 two-stage transition-aware return prediction (BTC-USD, 1h, K=4).
+
+### Changed
+
+- `EXPERIMENTS.md`: NB10 entry; running synthesis updated.
+
+### Findings
+
+- **Two-stage transition-aware (50/50 split, 1h)** (hourly BTC, walk-forward): hypothesis test null at 1h: transition_rf IC ≈ hierarchy_rf IC, +0.0005 mean lift, 2/5 folds positive
+
 ## [0.7.0] — 2026-05-12
 
 ### Added
