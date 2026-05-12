@@ -9,6 +9,8 @@ dependencies = [
     "pandas>=2.2",
     "matplotlib>=3.9",
     "torch>=2.4",
+    "scikit-learn>=1.5",
+    "yfinance>=0.2.50",
 ]
 
 [tool.uv]
