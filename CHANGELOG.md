@@ -4,6 +4,20 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.10.0] — 2026-05-12
+
+### Added
+
+- `12_two_stage_kfold_oof_1h.ipynb` — NB12 two-stage with K-fold OOF cross-fitting (BTC-USD, 1h, K=4).
+
+### Changed
+
+- `EXPERIMENTS.md`: NB12 entry; running synthesis updated.
+
+### Findings
+
+- **Two-stage with OOF cross-fitting (1h)** (hourly BTC, walk-forward + inner TimeSeriesSplit): sample-size haircut recovered; IC lift still null at 1h, but **AUC lift +0.007 with 4/5 folds positive**
+
 ## [0.9.0] — 2026-05-12
 
 ### Added
