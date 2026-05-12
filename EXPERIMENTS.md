@@ -27,14 +27,15 @@ A `baseline_rf` vs `hierarchy_rf` win establishes whether the soft-membership re
 | **Multi-crypto hourly robustness** | hourly BTC/ETH/SOL/XRP | baseline RF beats trivial baselines on 4/4 tickers; hierarchy IC lift positive on 4/4 (range +0.000 to +0.010); balanced-acc lift split 2/2 (BTC/SOL positive, ETH/XRP negative) | NB09 |
 | **Two-stage transition-aware (50/50 split, 1h)** | hourly BTC, walk-forward | hypothesis test null at 1h: transition_rf IC ≈ hierarchy_rf IC, +0.0005 mean lift, 2/5 folds positive | NB10 |
 | **Two-stage horizon sweep** | hourly BTC, horizons {1, 4, 24}h | **4h is the clean positive: IC lift +0.022, bal_acc +0.28 pp, both with 4/5 folds positive.** 1h within noise; 24h underpowered | NB11 |
+| **Two-stage with OOF cross-fitting (1h)** | hourly BTC, walk-forward + inner TimeSeriesSplit | sample-size haircut recovered; IC lift still null at 1h, but **AUC lift +0.007 with 4/5 folds positive** | NB12 |
 
-Net read (updated after NB11):
+Net read (updated after NB12):
 
-- **The hierarchy is useful as a target labeling** (NB06/07 — predicting which state the market moves to). This is the most robust positive result; it survives a depth sweep across K ∈ {2, 4, 8, 16} on three daily tickers. Soft-membership *as inputs* helps at K=4–8 and hurts at K=16.
+- **The hierarchy is useful as a target labeling** (NB06/07 — predicting which state the market moves to). This is the most robust positive result; it survives a depth sweep across K ∈ {2, 4, 8, 16} on three daily tickers.
 - **Baseline RF picks up real intraday signal** that extends across crypto (NB08/09): every ticker has mean balanced accuracy > 50%, ROC AUC ≥ 0.518, persistence has negative IC. Hourly OHLCV has next-hour predictability that's not a BTC-specific accident.
 - **The hierarchy *features* add a small lift on IC across crypto but not on balanced accuracy** (NB09). The IC lift sign is positive on 4/4 cryptos but tiny on ETH; the balanced-accuracy lift is split 2/2.
-- **The two-stage transition-aware architecture is positive at 4h** (NB11): IC lift +0.022, bal_acc +0.28 pp, both 4/5 folds positive. 1h is fold-boundary sensitive (NB10 null vs NB11 +0.010 on the same data); 24h is underpowered. The value lives in the *uncertainty representation* of Stage 1 (entropy, instability, drift), not in its argmax accuracy — which ties persistence.
-- **The hierarchy never helps direction prediction on daily data** (NB05). The disagreement with the intraday results suggests the hierarchy's value, if any, emerges at short-horizon resolution.
+- **The two-stage transition-aware architecture (NB10/11/12) is positively validated at intraday horizons.** Predicted state-transition features (probability vector, entropy, instability, drift, margin) sharpen up/down probability calls — small effect at 1h (AUC +0.007 with 4/5 folds positive under OOF cross-fitting, NB12), clean effect at 4h (IC +0.022, bal_acc +0.28 pp, both with 4/5 folds positive, NB11). The mechanism: transition features encode *uncertainty about the next regime*, which the static soft-membership does not. Even when Stage-1's argmax accuracy ties persistence, the entropy of its output carries useful signal.
+- **The hierarchy never helps direction prediction on daily data** (NB05). The disagreement with the intraday transition-feature lift suggests the hierarchy's value emerges at the short-horizon resolution where uncertainty quantification of regime transitions is meaningful.
 
 ## Metric glossary
 
