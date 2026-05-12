@@ -942,3 +942,111 @@ horizon model
         persistence              0.4911  0.0205     NaN     NaN
         transition_rf            0.4807  0.0402  0.4811  0.0522
 ```
+
+---
+
+## 2026-05-12 16:08:30 — NB12 two-stage with K-fold OOF cross-fitting (BTC-USD, 1h, K=4)
+
+**TL;DR — sample-size confounder removed; transition features add small AUC/bal_acc signal at 1h but not IC.** Replaces NB10's 50/50 chronological split with `TimeSeriesSplit(n_splits=4)` OOF cross-fitting. Stage 2 now trains on the full training slice with OOF transition features (80 % OOF coverage; the warm-up 20 % gets uniform `1/K` fallback). Final Stage-1 is fit on the full train slice and applied to test.
+
+**Sample-size haircut recovered:** `baseline_rf` IC went from +0.020 (NB10 50/50) → +0.026 (NB12 OOF), matching NB08/NB09's full-train baseline level. `hierarchy_rf` similarly recovered (+0.028 → +0.032). The mechanical fix worked.
+
+**Transition − hierarchy lift under OOF (1h, BTC):**
+
+| metric | NB10 (50/50) | NB12 (OOF, full train) |
+|---|---|---|
+| IC lift | +0.0005 (2/5 folds) | +0.0010 (2/5 folds) |
+| bal_acc lift (pp) | −0.37 (2/5 folds) | +0.51 (3/5 folds) |
+| AUC lift | +0.0041 (3/5 folds) | **+0.0069 (4/5 folds)** |
+
+**The IC null at 1h is genuine, not a sample-size artifact.** Even with full training data via OOF, `transition_rf` doesn't improve return-magnitude ranking over `hierarchy_rf`. The transition features are mostly redundant with raw soft-membership for predicting the *size* of the next-hour return.
+
+**But there's a consistent AUC and balanced-accuracy lift.** ROC AUC has 4/5 folds positive (+0.007 mean) and bal_acc has 3/5 folds positive (+0.5 pp mean). Transition features sharpen the *probability ranking* of direction calls even when they don't change IC.
+
+**Combined read across NB10/NB11/NB12 at 1h:**
+- IC lift: genuinely null (NB10 +0.0005, NB12 +0.0010 — both within noise even with full data).
+- bal_acc lift: small positive when properly cross-fitted (+0.5 pp, 3/5 folds).
+- AUC lift: small but most consistent (+0.007 with 4/5 folds positive — the cleanest 1h signal).
+
+**Combined read across NB11/NB12 (1h + 4h):** transition features add **ranking/calibration value, not magnitude-prediction value**. The effect strengthens with horizon — at 4h (NB11) the IC, bal_acc, and AUC lifts are all positive with 4/5 folds; at 1h (NB12) only AUC is consistently positive.
+
+**Final reading on the user's hypothesis:** *predicted movement through behavioral-state space sharpens up/down probability calls at intraday resolution*, with the effect modest at 1h (AUC-only) and clean at 4h (IC + bal_acc + AUC). The two-stage architecture is **positively validated** at intraday horizons, with the caveat that the signal is small enough to be useful as a research finding rather than a tradeable edge.
+
+**Config**
+
+```json
+{
+  "notebook": "12_two_stage_kfold_oof_1h.ipynb",
+  "ticker": "BTC-USD",
+  "period": "720d",
+  "interval": "1h",
+  "horizon_hours": 1,
+  "n_folds": 5,
+  "inner_n_splits": 4,
+  "max_hierarchy_depth": 2,
+  "stage1_params": {
+    "max_depth": 8,
+    "min_samples_leaf": 20
+  },
+  "stage2_params": {
+    "max_depth": 8,
+    "min_samples_leaf": 20
+  },
+  "rf_n_estimators": 200,
+  "seed": 42
+}
+```
+
+**Per-fold lifts: `transition_rf − hierarchy_rf`**
+
+|   fold |   ic_lift |   bal_acc_lift_pp |   auc_lift |
+|-------:|----------:|------------------:|-----------:|
+|      0 |   0.00918 |             0.01  |    0.00502 |
+|      1 |   0.00603 |            -0.054 |    0.00647 |
+|      2 |  -0.00187 |             1.758 |    0.01823 |
+|      3 |  -0.00767 |             1.221 |    0.009   |
+|      4 |  -0.00056 |            -0.366 |   -0.0042  |
+
+**Per-fold info (OOF coverage, Stage-1 sanity)**
+
+```
+   K  n_train  n_test  oof_covered_fraction  f1_full_acc_on_train  \
+0  4     6551    1638                0.7999                0.8935   
+1  4     8189    1638                0.7996                0.8811   
+2  4     9827    1638                0.7998                0.8770   
+3  4    11465    1638                0.8000                0.8782   
+4  4    13103    1638                0.7998                0.8761   
+
+   f1_persistence_acc_on_train  fold  
+0                       0.8809     0  
+1                       0.8657     1  
+2                       0.8612     2  
+3                       0.8618     3  
+4                       0.8610     4  
+```
+
+**Regression summary (mean ± std across folds)**
+
+```
+                   mae              rmse                ic         
+                  mean      std     mean      std     mean      std
+model                                                              
+baseline_rf    0.00296  0.00062  0.00465  0.00122  0.02599  0.02643
+hierarchy_rf   0.00296  0.00062  0.00465  0.00122  0.03176  0.02565
+persistence    0.00430  0.00089  0.00656  0.00167 -0.01855  0.02647
+transition_rf  0.00296  0.00062  0.00465  0.00122  0.03278  0.02404
+zero           0.00296  0.00061  0.00464  0.00121  0.00000  0.00000
+```
+
+**Classification summary (mean ± std across folds)**
+
+```
+              accuracy          balanced_accuracy           roc_auc         
+                  mean      std              mean      std     mean      std
+model                                                                       
+baseline_rf    0.51111  0.01723           0.51308  0.01474  0.51630  0.00981
+hierarchy_rf   0.51404  0.00630           0.51523  0.00618  0.51763  0.01039
+majority       0.50440  0.00626           0.50000  0.00000      NaN      NaN
+persistence    0.49267  0.01181           0.49257  0.01170      NaN      NaN
+transition_rf  0.51929  0.00958           0.52037  0.00842  0.52454  0.00582
+```
