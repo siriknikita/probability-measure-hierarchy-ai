@@ -1,6 +1,6 @@
 [project]
 name = "probability-measure-hierarchy-ai"
-version = "0.3.0"
+version = "0.4.0"
 description = "Prototype notebooks exploring a hierarchy of probability measures over a greed/fear feature space."
 requires-python = ">=3.12,<3.13"
 dependencies = [

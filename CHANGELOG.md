@@ -4,6 +4,20 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.4.0] — 2026-05-12
+
+### Added
+
+- `06_real_data_markov_kernel.ipynb` — NB06 Markov-kernel on real data (K=4, horizon=5).
+
+### Changed
+
+- `EXPERIMENTS.md`: NB06 entry; running synthesis updated.
+
+### Findings
+
+- **Next-state (which leaf in K leaves)** (daily, 3 tickers, K=4): hierarchy framing works — RF beats persistence by 7–13 pp everywhere
+
 ## [0.3.0] — 2026-05-12
 
 ### Added
