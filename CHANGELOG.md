@@ -4,6 +4,21 @@ Each release is one iteration of the experiment. Tags (`vX.Y.Z`) mark the state 
 the repo after that iteration's notebook was run and its result logged; the full
 write-up for each run lives in [`EXPERIMENTS.md`](EXPERIMENTS.md).
 
+## [0.2.0] — 2026-05-12
+
+### Added
+
+- `04_real_data_price_prediction_yfinance.ipynb` — first real-data run: baseline vs hierarchy-augmented sklearn models on close / return / direction.
+- Dependencies: `scikit-learn`, `yfinance`.
+
+### Changed
+
+- README documents NB04.
+
+### Findings
+
+- Single untuned run on SPY: hierarchy-augmented direction classifier +0.9 pp over baseline. Needs per-feature-set tuning and more tickers before it means anything.
+
 ## [0.1.0] — 2026-05-12
 
 ### Added
